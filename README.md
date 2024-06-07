@@ -30,5 +30,5 @@ What you need to install the software:
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/yourusername/rust-web-scraper.git
-   cd rust-web-scraper
+   git clone git@github.com:dhodyrev/async-rust-scraper.git
+   cd async-rust-scraper
