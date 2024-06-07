@@ -1,6 +1,7 @@
+use sqlx::SqlitePool;
 use dotenv::dotenv;
 use env_logger::Env;
-use std::env;
+use std::{env, time::Duration};
 use tokio::main;
 
 mod config;
@@ -11,8 +12,9 @@ mod utils;
 use crate::scraper::client::fetch_data;
 use db::operations::insert_data;
 use sqlx::sqlite::SqlitePoolOptions;
+use utils::rate_limiter::rate_limited_operation;
 
-async fn fetch_and_insert_data(pool: &sqlx::SqlitePool, base_url: &str, pages: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn fetch_and_insert_data(pool: &SqlitePool, base_url: &str, pages: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut tasks = vec![];
 
     for page in 1..=pages {
@@ -20,15 +22,29 @@ async fn fetch_and_insert_data(pool: &sqlx::SqlitePool, base_url: &str, pages: u
         let pool = pool.clone();
 
         let task = tokio::spawn(async move {
-            match fetch_data(&url).await {
-                Ok(data) => {
-                    if let Err(err) = insert_data(&pool, &data).await {
-                        log::error!("Error inserting data from {}: {}", url, err);
-                    } else {
-                        log::info!("Successfully inserted data from {}", url);
-                    }
+            let result = rate_limited_operation(|| async {
+                match fetch_data(&url).await {
+                    Ok(data) => {
+                        match insert_data(&pool, &data).await {
+                            Ok(_) => {
+                                log::info!("Successfully inserted data from {}", url);
+                                Ok(())
+                            },
+                            Err(err) => {
+                                log::error!("Error inserting data from {}: {}", url, err);
+                                Err(err)
+                            },
+                        }
+                    },
+                    Err(err) => {
+                        log::error!("Error fetching data from {}: {}", url, err);
+                        Err(sqlx::Error::Protocol(err.to_string()))
+                    },
                 }
-                Err(err) => log::error!("Error fetching data from {}: {}", url, err),
+            }, Duration::from_secs(1)).await;
+
+            if let Err(err) = result {
+                log::error!("Error in rate limited operation: {}", err);
             }
         });
 

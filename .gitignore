@@ -1,4 +1,3 @@
 /target
-/data/.
-data/mydatabase.db-shm
-data/mydatabase.db-wal
+/data
+/.idea
