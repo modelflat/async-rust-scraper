@@ -22,8 +22,7 @@ What you need to install the software:
 
 - Rust Programming Language
 - Cargo (Rust's package manager)
-- Docker (optional, for containerization)
-- Access to one of the supported databases (SQLite, PostgreSQL, or Redis)
+- Docker (to run a local instance of Postgres and/or Redis)
 
 ### Installation
 
